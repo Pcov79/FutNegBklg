@@ -5,7 +5,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 
 st.set_page_config(page_title="Future Negative Backlog", layout="wide")
-st.title("📊 Future Negative Backlog Check")
+st.title("🔥 Future Negative Backlog Check 🔥")
 
 # 💠 Orange background
 st.markdown(

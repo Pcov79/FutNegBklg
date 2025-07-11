@@ -59,7 +59,6 @@ if billing_file and backlog_file and engagement_file:
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         merged_df.to_excel(writer, index=False, sheet_name="Report")
-        writer.save()
     output.seek(0)
 
     # Highlight negative Delta Backlog

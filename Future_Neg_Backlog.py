@@ -3,6 +3,7 @@ import pandas as pd
 from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
+from datetime import date
 
 st.title("📊 Future Negative Backlog Analyzer")
 
@@ -77,10 +78,13 @@ if billing_file and backlog_file and engagement_file:
     wb.save(final_output)
     final_output.seek(0)
 
+    # Generate filename with current date
+    today_str = date.today().isoformat()
+    filename = f"Future_negative_backlog_{today_str}.xlsx"
+
     st.success("✅ Processing complete. Download your report below.")
     st.download_button(
         label="📥 Download Excel Report",
         data=final_output,
-        file_name="Future_negative_backlog.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+        file_name=filename,
+        mime="application/vnd.openxmlformats-officedocument

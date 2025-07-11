@@ -87,4 +87,5 @@ if billing_file and backlog_file and engagement_file:
         label="📥 Download Excel Report",
         data=final_output,
         file_name=filename,
-        mime="application/vnd.openxmlformats-officedocument
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )

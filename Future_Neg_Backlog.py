@@ -5,7 +5,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 from datetime import date
 
-st.title("📊 Future Negative Backlog Analyzer")
+st.title("📊 Future Negative Backlog check")
 
 # File uploaders
 billing_file = st.file_uploader("Upload Billing Plan Excel File", type=["xlsx"])

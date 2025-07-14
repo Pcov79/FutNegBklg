@@ -6,7 +6,7 @@ from openpyxl.styles import PatternFill
 from datetime import datetime
 
 st.set_page_config(page_title="Future Negative Backlog", layout="wide")
-st.title("📊 Future Negative Backlog Check")
+st.title("Fixed price Negative Backlog Check")
 
 # Upload files
 billing_file = st.file_uploader("Upload Billing Plan Excel File", type="xlsx")

@@ -3,6 +3,7 @@ import pandas as pd
 from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
+from datetime import datetime
 
 st.set_page_config(page_title="Future Negative Backlog", layout="wide")
 st.title("📊 Future Negative Backlog Check")
@@ -47,7 +48,9 @@ if billing_file and backlog_file and engagement_file:
     # Summarize backlog
     backlog_summary = backlog_df.groupby(
         ["WBS Element", "Sales Organization", "Sales Order"], as_index=False
-    )[["Remaining Backlog", "Measurement customer Name 1"]].first()
+    )[
+        ["Remaining Backlog", "Measurement customer Name 1"]
+    ].first()
 
     # Merge billing and backlog
     merged_df = pd.merge(
@@ -66,6 +69,12 @@ if billing_file and backlog_file and engagement_file:
         axis=1
     )
 
+    # Add Days Left column
+    today = datetime.today().date()
+    merged_df["Days Left"] = merged_df["Backlog Exceeded Date"].apply(
+        lambda d: (d - today).days if pd.notnull(d) else None
+    )
+
     # Merge with engagement manager
     engagement_df = engagement_df[["Sales Document", "Eng Mgr - First name", "Eng Mgr - Last name"]]
     merged_df = pd.merge(
@@ -80,7 +89,7 @@ if billing_file and backlog_file and engagement_file:
     ordered_columns = [
         "Sales Organization", "Sales Order", "Measurement customer Name 1", "WBS Element",
         "Billing Value", "Remaining Backlog", "Delta Backlog",
-        "Backlog Exceeded Date", "Eng Mgr - First name", "Eng Mgr - Last name"
+        "Backlog Exceeded Date", "Days Left", "Eng Mgr - First name", "Eng Mgr - Last name"
     ]
     merged_df = merged_df[ordered_columns]
 

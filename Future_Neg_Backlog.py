@@ -3,26 +3,31 @@ import pandas as pd
 from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
-from datetime import date
 
-st.title("📊 Future Negative Backlog check")
+st.set_page_config(page_title="Future Negative Backlog", layout="wide")
+st.title("📊 Future Negative Backlog Check")
 
-# File uploaders
-billing_file = st.file_uploader("Upload Billing Plan Excel File", type=["xlsx"])
-backlog_file = st.file_uploader("Upload Backlog Excel File", type=["xlsx"])
-engagement_file = st.file_uploader("Upload Engagement Manager Excel File", type=["xlsx"])
+# Upload files
+billing_file = st.file_uploader("Upload Billing Plan Excel File", type="xlsx")
+backlog_file = st.file_uploader("Upload Backlog Excel File", type="xlsx")
+engagement_file = st.file_uploader("Upload Engagement Manager Excel File", type="xlsx")
 
 if billing_file and backlog_file and engagement_file:
     billing_df = pd.read_excel(billing_file, engine="openpyxl")
     backlog_df = pd.read_excel(backlog_file, engine="openpyxl")
     engagement_df = pd.read_excel(engagement_file, engine="openpyxl")
 
-    # Summarize billing
+    # Process billing
     billing_summary = billing_df.groupby(
         ["WBS Element", "Sales Organization", "Sales Order"], as_index=False
     )["Billing Value"].sum()
 
-    # Summarize backlog
+    # Get earliest billing date for each group
+    billing_dates = billing_df.groupby(
+        ["WBS Element", "Sales Organization", "Sales Order"], as_index=False
+    )["Billing Date"].min().rename(columns={"Billing Date": "Earliest Billing Date"})
+
+    # Process backlog
     backlog_summary = backlog_df.groupby(
         ["WBS Element", "Sales Organization", "Sales Order"], as_index=False
     )[["Remaining Backlog", "Measurement customer Name 1"]].first()
@@ -38,6 +43,19 @@ if billing_file and backlog_file and engagement_file:
     # Calculate Delta Backlog
     merged_df["Delta Backlog"] = (merged_df["Remaining Backlog"] - merged_df["Billing Value"]).round(2)
 
+    # Add billing date where Billing Value > Remaining Backlog
+    merged_df = pd.merge(
+        merged_df,
+        billing_dates,
+        on=["WBS Element", "Sales Organization", "Sales Order"],
+        how="left"
+    )
+    merged_df["Billing Date (if Billing > Backlog)"] = merged_df.apply(
+        lambda row: row["Earliest Billing Date"] if row["Billing Value"] > row["Remaining Backlog"] else None,
+        axis=1
+    )
+    merged_df.drop(columns=["Earliest Billing Date"], inplace=True)
+
     # Merge with engagement manager
     engagement_df = engagement_df[["Sales Document", "Eng Mgr - First name", "Eng Mgr - Last name"]]
     merged_df = pd.merge(
@@ -50,42 +68,44 @@ if billing_file and backlog_file and engagement_file:
 
     # Reorder columns
     ordered_columns = [
-        "Sales Organization", "Sales Order", "Measurement customer Name 1", "WBS Element",
-        "Billing Value", "Remaining Backlog", "Delta Backlog",
-        "Eng Mgr - First name", "Eng Mgr - Last name"
+        "Sales Organization",
+        "Sales Order",
+        "Measurement customer Name 1",
+        "WBS Element",
+        "Billing Value",
+        "Remaining Backlog",
+        "Delta Backlog",
+        "Billing Date (if Billing > Backlog)",
+        "Eng Mgr - First name",
+        "Eng Mgr - Last name"
     ]
     merged_df = merged_df[ordered_columns]
 
     # Save to Excel with formatting
     output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        merged_df.to_excel(writer, index=False, sheet_name="Report")
+    merged_df.to_excel(output, index=False, engine="openpyxl")
     output.seek(0)
 
-    # Highlight negative Delta Backlog
+    # Highlight negative values
     wb = load_workbook(output)
     ws = wb.active
     header = [cell.value for cell in ws[1]]
     delta_col_idx = header.index("Delta Backlog") + 1
     yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+
     for row in ws.iter_rows(min_row=2, min_col=delta_col_idx, max_col=delta_col_idx):
         for cell in row:
             if isinstance(cell.value, (int, float)) and cell.value < 0:
                 cell.fill = yellow_fill
 
-    # Save updated workbook to BytesIO
+    # Save final workbook
     final_output = BytesIO()
     wb.save(final_output)
     final_output.seek(0)
 
-    # Generate filename with current date
-    today_str = date.today().isoformat()
-    filename = f"Future_negative_backlog_{today_str}.xlsx"
-
-    st.success("✅ Processing complete. Download your report below.")
     st.download_button(
-        label="📥 Download Excel Report",
+        label="Download Result Excel File",
         data=final_output,
-        file_name=filename,
+        file_name="negative_backlog_analysis.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )

@@ -17,6 +17,28 @@ if billing_file and backlog_file and engagement_file:
     backlog_df = pd.read_excel(backlog_file, engine="openpyxl")
     engagement_df = pd.read_excel(engagement_file, engine="openpyxl")
 
+    # Ensure Billing Date is datetime
+    billing_df["Billing Date"] = pd.to_datetime(billing_df["Billing Date"])
+    billing_df.sort_values(by=["WBS Element", "Sales Order", "Billing Date"], inplace=True)
+
+    # Compute Backlog Exceeded Date
+    exceed_date_dict = {}
+    grouped = billing_df.groupby(["WBS Element", "Sales Order"])
+    for (wbs, order), group in grouped:
+        group = group.copy()
+        group["Cumulative Billing"] = group["Billing Value"].cumsum()
+        backlog_row = backlog_df[
+            (backlog_df["WBS Element"] == wbs) &
+            (backlog_df["Sales Order"] == order)
+        ]
+        if not backlog_row.empty:
+            remaining_backlog = backlog_row.iloc[0]["Remaining Backlog"]
+            exceeded = group[group["Cumulative Billing"] > remaining_backlog]
+            if not exceeded.empty:
+                exceed_date_dict[(wbs, order)] = exceeded.iloc[0]["Billing Date"].date()
+            else:
+                exceed_date_dict[(wbs, order)] = None
+
     # Summarize billing
     billing_summary = billing_df.groupby(
         ["WBS Element", "Sales Organization", "Sales Order"], as_index=False
@@ -38,6 +60,12 @@ if billing_file and backlog_file and engagement_file:
     # Calculate Delta Backlog
     merged_df["Delta Backlog"] = (merged_df["Remaining Backlog"] - merged_df["Billing Value"]).round(2)
 
+    # Add Backlog Exceeded Date
+    merged_df["Backlog Exceeded Date"] = merged_df.apply(
+        lambda row: exceed_date_dict.get((row["WBS Element"], row["Sales Order"]), None),
+        axis=1
+    )
+
     # Merge with engagement manager
     engagement_df = engagement_df[["Sales Document", "Eng Mgr - First name", "Eng Mgr - Last name"]]
     merged_df = pd.merge(
@@ -47,25 +75,6 @@ if billing_file and backlog_file and engagement_file:
         right_on="Sales Document",
         how="left"
     ).drop(columns=["Sales Document"])
-
-    # Determine the billing date when cumulative billing exceeds remaining backlog
-    billing_df["Billing Date"] = pd.to_datetime(billing_df["Billing Date"])
-    billing_df.sort_values(by=["Sales Order", "Billing Date"], inplace=True)
-
-    exceed_dates = []
-    for _, row in merged_df.iterrows():
-        sales_order = row["Sales Order"]
-        backlog = row["Remaining Backlog"]
-        billing_rows = billing_df[billing_df["Sales Order"] == sales_order]
-        billing_rows = billing_rows.groupby("Billing Date")["Billing Value"].sum().reset_index()
-        billing_rows["Cumulative"] = billing_rows["Billing Value"].cumsum()
-        exceed_row = billing_rows[billing_rows["Cumulative"] > backlog]
-        if not exceed_row.empty:
-            exceed_dates.append(exceed_row.iloc[0]["Billing Date"].date())
-        else:
-            exceed_dates.append(None)
-
-    merged_df["Backlog Exceeded Date"] = exceed_dates
 
     # Reorder columns
     ordered_columns = [

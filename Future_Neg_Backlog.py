@@ -85,7 +85,7 @@ if billing_file and backlog_file and engagement_file:
         how="left"
     ).drop(columns=["Sales Document"])
 
-    # Reorder columns
+    # Reorder columns to include Days Left
     ordered_columns = [
         "Sales Organization", "Sales Order", "Measurement customer Name 1", "WBS Element",
         "Billing Value", "Remaining Backlog", "Delta Backlog",

@@ -85,7 +85,7 @@ if billing_file and backlog_file and engagement_file:
         how="left"
     ).drop(columns=["Sales Document"])
 
-    # Reorder columns to include Days Left
+    # Reorder columns
     ordered_columns = [
         "Sales Organization", "Sales Order", "Measurement customer Name 1", "WBS Element",
         "Billing Value", "Remaining Backlog", "Delta Backlog",
@@ -115,5 +115,9 @@ if billing_file and backlog_file and engagement_file:
     wb.save(final_output)
     final_output.seek(0)
 
-    st.download_button("Download Result Excel", data=final_output, file_name="negative_backlog_analysis.xlsx")
+    # Generate filename with today's date
+    today_str = datetime.today().strftime("%Y%m%d")
+    filename = f"Fixed_price_billing_plan_check_{today_str}.xlsx"
+
+    st.download_button("Download Result Excel", data=final_output, file_name=filename)
     st.dataframe(merged_df)
